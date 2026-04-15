@@ -1,0 +1,78 @@
+name: Claude Sr. Engineer Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # Skip if the PR was opened by the Claude worker itself re-triggering after a fix
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Sr. Engineer Review
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            You are a Senior Engineer reviewing a pull request on the ACP-ACRS Feeds Dispatcher project.
+
+            ## Your Role
+            - Review all changed files thoroughly
+            - Leave specific, actionable inline comments on issues you find
+            - Think about correctness, security, scalability, and consistency with the project's architecture
+
+            ## Project Context
+            This is an event-driven integration layer between ACRS (Amadeus) and internal consumers.
+            - App1 (Ingestion): receives feeds via ALB, validates, writes to S3, enqueues to SQS
+            - App2 (Dispatch): polls SQS, generates presigned URLs, publishes to EventBridge
+            - Infrastructure: EKS, Terraform, Helm, ArgoCD
+            - Environments: DEV → OAT → PROD
+            - PROD downtime constraint: <2 minutes
+
+            ## What to Check
+
+            **Code / Services:**
+            - No secrets or credentials hardcoded
+            - `.env.example` updated if new env vars are introduced
+            - Health endpoints (`/health`, `/health/details`) correctly implemented
+            - Error handling doesn't swallow failures silently
+            - SQS message deletion only happens after successful processing
+            - S3 writes use the correct key structure: `{feedType}/{yyyy}/{mm}/{dd}/{uuid}`
+
+            **Infrastructure (Terraform):**
+            - No hardcoded account IDs, ARNs, or credentials
+            - Resource tags include `Environment`, `ManagedBy = terraform`
+            - State backend configured correctly per environment
+            - IAM policies follow least-privilege
+
+            **Helm / Kubernetes:**
+            - `latest` tag never used in OAT or PROD values files
+            - Resource requests and limits defined
+            - Liveness and readiness probes configured
+            - Autoscaling enabled for OAT and PROD
+
+            **Docs / ADRs:**
+            - ADR format followed (Status, Context, Decision, Consequences)
+            - Diagrams use Mermaid and render correctly in Markdown
+            - Runbooks include concrete commands, not just descriptions
+
+            **General:**
+            - PR touches only what the title/description claims
+            - No commented-out code left behind
+            - No TODO left untracked (either create a backlog item or fix it now)
+
+            ## Decision
+            After your review:
+            - If everything looks good: **approve the PR** with a brief summary of what you reviewed
+            - If there are issues: **request changes** with clear, specific feedback on what needs to be fixed
+            - Do NOT merge the PR — approval is your final action
