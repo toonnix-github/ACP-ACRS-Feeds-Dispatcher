@@ -1,0 +1,281 @@
+name: Gemini Sr. Engineer Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff
+        id: diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fetch the full diff of the PR (file changes only, ignore lock files)
+          gh pr diff ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            > /tmp/pr_diff.txt
+
+          # Trim the diff if it's extremely large (Gemini has token limits)
+          # Keep first 60,000 characters to stay within model context
+          head -c 60000 /tmp/pr_diff.txt > /tmp/pr_diff_trimmed.txt
+
+          echo "diff_size=$(wc -c < /tmp/pr_diff.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Get PR metadata
+        id: pr_meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --json body --jq '.body // "No description provided."')
+
+          echo "pr_title=$PR_TITLE" >> "$GITHUB_OUTPUT"
+
+          # Save body to file to handle multi-line content
+          echo "$PR_BODY" > /tmp/pr_body.txt
+
+      - name: Build Gemini review prompt
+        run: |
+          cat > /tmp/gemini_prompt.txt << 'SYSTEM_PROMPT'
+          You are a Senior Engineer ("Sr. Reviewer") performing a thorough code review on a pull request for the ACP-ACRS Feeds Dispatcher project.
+
+          ## Your Role
+          - Review ALL changed files in the diff thoroughly.
+          - Provide specific, actionable feedback.
+          - Think about: correctness, security, scalability, maintainability, and consistency with the project architecture.
+          - Be constructive and professional — explain WHY something is an issue and suggest a fix.
+
+          ## Project Context
+          This is an event-driven integration layer between ACRS (Amadeus) and internal consumers (Loyalty, Data Team, FastCom).
+          - **App1 (Ingestion)**: receives feeds via ALB, authenticates, validates, decompresses (JSON/Gzip), writes raw payload to S3, enqueues lightweight reference to SQS.
+          - **App2 (Dispatch)**: polls SQS, generates S3 presigned URLs, transforms data, publishes events to EventBridge.
+          - **Infrastructure**: EKS (containerised Node.js 20), Terraform, Helm, ArgoCD.
+          - **Environments**: DEV → OAT → PROD.
+          - **PROD constraint**: downtime must be < 2 minutes.
+          - **Auth**: migrating from Cognito to Azure EntraID.
+          - **Large payload strategy**: store in S3, pass presigned URL — never embed payload in events.
+
+          ## Review Checklist
+
+          **Code / Services:**
+          - No secrets or credentials hardcoded
+          - `.env.example` updated if new env vars are introduced
+          - Health endpoints (`/health`, `/health/details`) correctly implemented per spec
+          - Error handling doesn't swallow failures silently
+          - SQS message deletion only happens after successful processing
+          - S3 writes use the correct key structure: `{feedType}/{yyyy}/{mm}/{dd}/{uuid}`
+          - Proper input validation and sanitisation
+
+          **Infrastructure (Terraform):**
+          - No hardcoded account IDs, ARNs, or credentials
+          - Resources tagged with `Environment`, `ManagedBy = terraform`
+          - State backend configured correctly per environment
+          - IAM policies follow least-privilege
+
+          **Helm / Kubernetes:**
+          - `latest` tag never used in OAT or PROD values files
+          - Resource requests and limits defined
+          - Liveness and readiness probes configured
+          - Autoscaling enabled for OAT and PROD
+
+          **Docs / ADRs:**
+          - ADR format followed (Status, Context, Decision, Consequences)
+          - Diagrams use Mermaid and render correctly in Markdown
+          - Runbooks include concrete commands, not just descriptions
+
+          **General:**
+          - PR touches only what the title/description claims
+          - No commented-out code left behind
+          - No TODO left untracked (either create a backlog item or fix it now)
+
+          ## Your Output Format
+
+          You MUST respond with valid JSON only. No markdown fences, no extra text.
+
+          {
+            "decision": "APPROVE" | "REQUEST_CHANGES",
+            "summary": "A 2-4 sentence summary of what you reviewed and your overall assessment.",
+            "comments": [
+              {
+                "file": "path/to/file.js",
+                "line": 42,
+                "severity": "critical" | "warning" | "suggestion" | "nitpick",
+                "body": "Explanation of the issue and suggested fix."
+              }
+            ]
+          }
+
+          Rules:
+          - "decision" must be "APPROVE" if there are no critical or warning issues.
+          - "decision" must be "REQUEST_CHANGES" if there is at least one critical or warning issue.
+          - "comments" can be empty if everything looks good.
+          - "line" should reference the line number in the NEW version of the file (from the diff's `+` lines). If you cannot determine the exact line, set "line" to 1.
+          - Keep each comment body concise but actionable.
+          SYSTEM_PROMPT
+
+      - name: Call Gemini API
+        id: gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          PR_TITLE="${{ steps.pr_meta.outputs.pr_title }}"
+          PR_BODY=$(cat /tmp/pr_body.txt)
+          DIFF=$(cat /tmp/pr_diff_trimmed.txt)
+
+          # Build the user message
+          USER_MSG=$(cat <<EOF
+          ## Pull Request
+          **Title:** ${PR_TITLE}
+
+          **Description:**
+          ${PR_BODY}
+
+          ## Diff
+          \`\`\`diff
+          ${DIFF}
+          \`\`\`
+
+          Please review this PR and respond with the JSON format specified.
+          EOF
+          )
+
+          # Build the JSON payload for Gemini API using jq for proper escaping
+          SYSTEM_PROMPT=$(cat /tmp/gemini_prompt.txt)
+
+          jq -n \
+            --arg system "$SYSTEM_PROMPT" \
+            --arg user "$USER_MSG" \
+            '{
+              "system_instruction": {
+                "parts": [{"text": $system}]
+              },
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [{"text": $user}]
+                }
+              ],
+              "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": 8192,
+                "responseMimeType": "application/json"
+              }
+            }' > /tmp/gemini_request.json
+
+          # Call the Gemini API
+          HTTP_STATUS=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d @/tmp/gemini_request.json \
+            -o /tmp/gemini_response.json)
+
+          # Extract status code (last line)
+          STATUS_CODE=$(echo "$HTTP_STATUS" | tail -1)
+
+          if [ "$STATUS_CODE" != "200" ]; then
+            echo "::error::Gemini API returned HTTP $STATUS_CODE"
+            cat /tmp/gemini_response.json
+            exit 1
+          fi
+
+          # Extract the text content from the Gemini response
+          jq -r '.candidates[0].content.parts[0].text' /tmp/gemini_response.json > /tmp/review_result.json
+
+          echo "Gemini review result:"
+          cat /tmp/review_result.json
+
+      - name: Post review to GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REVIEW_JSON=$(cat /tmp/review_result.json)
+
+          # Extract decision and summary
+          DECISION=$(echo "$REVIEW_JSON" | jq -r '.decision')
+          SUMMARY=$(echo "$REVIEW_JSON" | jq -r '.summary')
+          COMMENT_COUNT=$(echo "$REVIEW_JSON" | jq '.comments | length')
+
+          # Map decision to GitHub review event
+          if [ "$DECISION" = "APPROVE" ]; then
+            GH_EVENT="APPROVE"
+            EMOJI="✅"
+          else
+            GH_EVENT="REQUEST_CHANGES"
+            EMOJI="🔄"
+          fi
+
+          # --- Post inline comments (if any) ---
+          if [ "$COMMENT_COUNT" -gt 0 ]; then
+            # Build the review comments array for the GitHub API
+            REVIEW_COMMENTS=$(echo "$REVIEW_JSON" | jq '[
+              .comments[] | {
+                path: .file,
+                line: (.line // 1),
+                side: "RIGHT",
+                body: (
+                  (if .severity == "critical" then "🔴 **Critical**"
+                   elif .severity == "warning" then "🟡 **Warning**"
+                   elif .severity == "suggestion" then "💡 **Suggestion**"
+                   else "📝 **Nitpick**"
+                   end) + "\n\n" + .body
+                )
+              }
+            ]')
+
+            # Submit the review with inline comments via GitHub API
+            jq -n \
+              --arg event "$GH_EVENT" \
+              --arg body "${EMOJI} **Gemini Sr. Reviewer — ${DECISION}**
+
+          ${SUMMARY}
+
+          ---
+          _Review powered by Gemini AI. This is an automated review — a human reviewer should verify before merging._" \
+              --argjson comments "$REVIEW_COMMENTS" \
+              '{
+                event: $event,
+                body: $body,
+                comments: $comments
+              }' | gh api \
+                --method POST \
+                "/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
+                --input -
+
+          else
+            # No inline comments — just post the review summary
+            jq -n \
+              --arg event "$GH_EVENT" \
+              --arg body "${EMOJI} **Gemini Sr. Reviewer — ${DECISION}**
+
+          ${SUMMARY}
+
+          ---
+          _Review powered by Gemini AI. This is an automated review — a human reviewer should verify before merging._" \
+              '{
+                event: $event,
+                body: $body
+              }' | gh api \
+                --method POST \
+                "/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
+                --input -
+          fi
+
+          echo "::notice::Gemini Sr. Review posted — Decision: $DECISION ($COMMENT_COUNT comments)"

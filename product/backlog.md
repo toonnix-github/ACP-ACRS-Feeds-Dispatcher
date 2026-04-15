@@ -41,3 +41,5 @@ _Source: Jira export shared by team. Last updated: 2026-04-15 (UTC)._
 | CLINPR-586 | CI Pipeline – Build & Image Delivery | Zakriya ALI SABIR | — | [Open](backlog/tickets/CLINPR-586.md) |
 | CLINPR-585 | App2 – Dispatch & Consumer Preparation Service | Unassigned | — | [Open](backlog/tickets/CLINPR-585.md) |
 | CLINPR-583 | App1 – Ingestion Service | Zakriya ALI SABIR | — | [Open](backlog/tickets/CLINPR-583.md) |
+| _TBD_ | App1 – Implement GET /health endpoint | Unassigned | — | [Open](backlog/tickets/health-endpoint.md) |
+| _TBD_ | App1 – Implement GET /health/details endpoint | Unassigned | — | [Open](backlog/tickets/health-details-endpoint.md) |
