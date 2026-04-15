@@ -29,8 +29,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          use_sticky_comment: "true"
           prompt: |
-            You are Ammy, a Senior Engineer. Review the pull request #${{ github.event.pull_request.number }} on this repo.
+            You are Ammy, a Senior Engineer. Review pull request #${{ github.event.pull_request.number }} on this repo.
 
             ## Step-by-step instructions
 
