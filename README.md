@@ -4,6 +4,59 @@ Event-driven integration layer between ACRS (Amadeus) and internal consumers. Di
 
 ---
 
+## Repository Structure
+
+```
+ACP-ACRS-Feeds-Dispatcher/
+├── docs/                        # Reference documentation
+│   ├── architecture/            # System design, ADRs, diagrams
+│   │   ├── adr/                 # Architecture Decision Records
+│   │   └── diagrams/            # Standalone diagram sources
+│   ├── business/                # Product brief, value map
+│   ├── onboarding/              # Publisher & consumer onboarding guides
+│   ├── runbooks/                # Incident response, deployment checklist
+│   └── compliance/              # ACP Label Framework status
+│
+├── product/                     # Product workspace (PO-owned)
+│   ├── roadmap.md
+│   ├── backlog.md
+│   └── feedback/                # Async stakeholder feedback
+│
+├── services/                    # Application source code
+│   ├── app1-ingestion/          # Receives feeds → S3 + SQS
+│   └── app2-dispatch/           # SQS → transform → EventBridge
+│
+├── infra/                       # Infrastructure as Code
+│   ├── terraform/
+│   │   ├── modules/
+│   │   │   ├── consumer/        # Terraform module: onboard a consumer
+│   │   │   └── endpoint/        # Terraform module: onboard a feed endpoint
+│   │   └── environments/
+│   │       ├── dev/
+│   │       ├── oat/
+│   │       └── prod/
+│   └── helm/
+│       ├── app1-ingestion/      # Helm chart + per-env values
+│       └── app2-dispatch/       # Helm chart + per-env values
+│
+├── deploy/                      # ArgoCD deployment manifests
+│   └── argocd/
+│       ├── project.yaml
+│       ├── app1-ingestion.yaml  # DEV / OAT / PROD Applications
+│       └── app2-dispatch.yaml
+│
+├── monitoring/                  # Dashboards and alert definitions
+│   ├── cloudwatch/              # CloudWatch dashboards + alarms
+│   └── splunk/                  # Splunk dashboards
+│
+└── .github/
+    ├── CODEOWNERS
+    ├── pull_request_template.md
+    └── workflows/               # CI pipelines (build, push to ECR, scan)
+```
+
+---
+
 ## Table of Contents
 
 - [Architecture Overview](#architecture-overview)
@@ -27,8 +80,25 @@ Event-driven integration layer between ACRS (Amadeus) and internal consumers. Di
 
 ### Current Architecture (v1/v2 – Serverless)
 
-```
-ACRS → API Gateway → Lambda → EventBridge → Consumers
+```mermaid
+flowchart LR
+    ACRS["ACRS\n(Amadeus)"]
+    APIGW["API Gateway\n~6 MB limit"]
+    Lambda["Lambda\nAuth · Validate · Forward"]
+    S3[("S3\nOverflow")]
+    EB["EventBridge\nFan-out"]
+    DLQ["DLQ"]
+    C1["Loyalty"]
+    C2["Data Team"]
+    C3["FastCom"]
+
+    ACRS --> APIGW --> Lambda
+    Lambda -.->|large payload| S3
+    Lambda --> EB
+    Lambda --> DLQ
+    EB --> C1
+    EB --> C2
+    EB --> C3
 ```
 
 | Component | Role |
@@ -52,8 +122,34 @@ ACRS → API Gateway → Lambda → EventBridge → Consumers
 
 ### Target Architecture (v4 – EKS-based)
 
-```
-ACRS → ALB → App1 (Ingestion) → S3 → SQS → App2 (Dispatch) → EventBridge / Consumers
+```mermaid
+flowchart LR
+    ACRS["ACRS\n(Amadeus)"]
+    ALB["ALB\nPath-based routing"]
+
+    subgraph EKS["EKS Cluster"]
+        App1["App1\nIngestion Service\nAuth · Validate · Decompress"]
+        App2["App2\nDispatch Service\nTransform · Publish"]
+    end
+
+    S3[("S3\nRaw Storage")]
+    SQS["SQS Queue\nAsync decoupling"]
+    DLQ["DLQ"]
+    EB["EventBridge"]
+    C1["Loyalty"]
+    C2["Data Team"]
+    C3["FastCom"]
+
+    ACRS --> ALB --> App1
+    App1 --> S3
+    App1 --> SQS
+    SQS --> App2
+    SQS --> DLQ
+    S3 -.->|presigned URL| App2
+    App2 --> EB
+    EB --> C1
+    EB --> C2
+    EB --> C3
 ```
 
 Moves from serverless to container-based architecture on EKS, eliminating payload size constraints and reducing operational complexity.

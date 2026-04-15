@@ -1,0 +1,11 @@
+replicaCount: 2
+
+image:
+  repository: "{account}.dkr.ecr.eu-west-1.amazonaws.com/feeds-dispatcher/app1-ingestion"
+  tag: ""  # Set by CI pipeline
+
+env:
+  NODE_ENV: "production"
+  AWS_REGION: "eu-west-1"
+  S3_BUCKET_NAME: "feeds-dispatcher-raw-oat"
+  SQS_QUEUE_URL: "https://sqs.eu-west-1.amazonaws.com/{account}/feeds-dispatcher-sqs-oat"

@@ -1,0 +1,26 @@
+# CODEOWNERS
+# Each line is a pattern followed by one or more owners.
+# The last matching pattern takes precedence.
+
+# Default — Engineering team owns everything not explicitly listed
+*                           @toonnix-github
+
+# Architecture & docs — Architects must review
+/docs/architecture/         @toonnix-github
+/docs/compliance/           @toonnix-github
+
+# Product — PO must review
+/product/                   @toonnix-github
+
+# Infrastructure — Platform team must review
+/infra/                     @toonnix-github
+/deploy/                    @toonnix-github
+
+# Services — Engineering team
+/services/                  @toonnix-github
+
+# Monitoring — Engineering + Platform
+/monitoring/                @toonnix-github
+
+# CI/CD — Platform team must review
+/.github/workflows/         @toonnix-github
