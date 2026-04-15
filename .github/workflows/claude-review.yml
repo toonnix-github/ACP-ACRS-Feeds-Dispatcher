@@ -66,10 +66,8 @@ jobs:
 
       - name: Determine verdict and post review
         run: |
-          REVIEW_BODY=$(cat /tmp/review_body.txt)
-
-          # Detect verdict from review text
-          if echo "$REVIEW_BODY" | grep -qi "REQUEST_CHANGES\|request changes\|blocking issue\|must fix\|cannot approve"; then
+          # Detect verdict from review text (avoid loading into variable to preserve newlines)
+          if grep -qi "REQUEST_CHANGES\|request changes\|blocking issue\|must fix\|cannot approve" /tmp/review_body.txt; then
             EVENT="REQUEST_CHANGES"
           else
             EVENT="APPROVE"
@@ -77,9 +75,11 @@ jobs:
 
           echo "Verdict: $EVENT"
 
-          # Post formal PR review (approve or request changes)
+          # Post formal PR review using --body-file to avoid shell escaping issues
           if [ "$EVENT" = "REQUEST_CHANGES" ]; then
-            gh pr review "$PR_NUMBER" --repo "$REPO" --request-changes --body "$REVIEW_BODY"
+            gh pr review "$PR_NUMBER" --repo "$REPO" --request-changes --body-file /tmp/review_body.txt \
+              || gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file /tmp/review_body.txt
           else
-            gh pr review "$PR_NUMBER" --repo "$REPO" --approve --body "$REVIEW_BODY"
+            gh pr review "$PR_NUMBER" --repo "$REPO" --approve --body-file /tmp/review_body.txt \
+              || gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file /tmp/review_body.txt
           fi
