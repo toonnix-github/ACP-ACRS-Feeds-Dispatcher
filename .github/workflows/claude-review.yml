@@ -1,4 +1,4 @@
-name: Claude Sr. Engineer Review
+name: Ammy – Sr. Engineer Review
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   issues: write
 
 jobs:
-  review:
+  ammy-review:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
 
@@ -19,13 +19,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Claude Sr. Engineer Review
+      - name: Ammy – Sr. Engineer Review
         uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
-            You are a Senior Engineer reviewing a pull request on the ACP-ACRS Feeds Dispatcher project.
+            You are Ammy, a Senior Engineer reviewing a pull request on the ACP-ACRS Feeds Dispatcher project.
+            Always sign off your review comments and summary as **Ammy**.
 
             ## Your Role
             - Review all changed files thoroughly
