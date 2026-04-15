@@ -315,8 +315,10 @@ For high-risk releases, use per-endpoint rollout to minimize blast radius.
 
 ## Current Status
 
-- Migrating to EKS (target next PI)
-- Performance testing in progress
-- ACP Label Framework compliance ~70% complete
-- Cognito usage being reduced / phased out
-- Some CloudWatch/Splunk dashboards pending final validation
+- **Gemini-based Sr. Engineer AI reviewer** implemented and active for PRs.
+- **Health check endpoints** (`/health`, `/health/details`) backlog defined and ready for implementation.
+- Migrating to EKS (target next PI).
+- Performance testing in progress.
+- ACP Label Framework compliance ~70% complete.
+- Cognito usage being reduced / phased out.
+- Some CloudWatch/Splunk dashboards pending final validation.

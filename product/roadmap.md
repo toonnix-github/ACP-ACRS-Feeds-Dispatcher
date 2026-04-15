@@ -31,3 +31,4 @@
 | Gzip support (workaround) | Past | Replaced by native handling in App1 |
 | EventBridge fan-out for Loyalty, Data Team, FastCom | Past | Live in PROD |
 | DLQ setup per consumer | Past | Live in PROD |
+| Gemini Sr. Engineer AI Reviewer | PI7 | Automated PR reviews using Gemini 2.0 Flash |
