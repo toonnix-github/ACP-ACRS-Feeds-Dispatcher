@@ -1,0 +1,89 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app2-dispatch-dev
+  namespace: argocd
+  labels:
+    service: app2-dispatch
+    environment: dev
+spec:
+  project: feeds-dispatcher
+
+  source:
+    repoURL: "{account}.dkr.ecr.eu-west-1.amazonaws.com/feeds-dispatcher"
+    chart: app2-dispatch
+    targetRevision: "*"
+    helm:
+      valueFiles:
+        - values-dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: feeds-dispatcher-dev
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app2-dispatch-oat
+  namespace: argocd
+  labels:
+    service: app2-dispatch
+    environment: oat
+spec:
+  project: feeds-dispatcher
+
+  source:
+    repoURL: "{account}.dkr.ecr.eu-west-1.amazonaws.com/feeds-dispatcher"
+    chart: app2-dispatch
+    targetRevision: "*"
+    helm:
+      valueFiles:
+        - values-oat.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: feeds-dispatcher-oat
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app2-dispatch-prod
+  namespace: argocd
+  labels:
+    service: app2-dispatch
+    environment: prod
+spec:
+  project: feeds-dispatcher
+
+  source:
+    repoURL: "{account}.dkr.ecr.eu-west-1.amazonaws.com/feeds-dispatcher"
+    chart: app2-dispatch
+    targetRevision: "*"
+    helm:
+      valueFiles:
+        - values-prod.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: feeds-dispatcher-prod
+
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    # PROD: no auto-sync — manual trigger required

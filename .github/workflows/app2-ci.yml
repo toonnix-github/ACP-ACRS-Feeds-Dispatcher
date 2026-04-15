@@ -1,0 +1,47 @@
+name: App2 – Dispatch CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/app2-dispatch/**'
+      - '.github/workflows/app2-ci.yml'
+  pull_request:
+    paths:
+      - 'services/app2-dispatch/**'
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/app2-dispatch
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: docker build --target test -t app2-dispatch-test .
+
+      - name: Build production image
+        run: |
+          docker build --target runtime \
+            -t app2-dispatch:${{ github.sha }} .
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: eu-west-1
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push to ECR
+        run: |
+          IMAGE_URI="${{ secrets.ECR_REGISTRY }}/feeds-dispatcher/app2-dispatch:${{ github.sha }}"
+          docker tag app2-dispatch:${{ github.sha }} $IMAGE_URI
+          docker push $IMAGE_URI
+
+      - name: Security scan (placeholder)
+        run: echo "TODO: add Wiz + Checkmarx scan steps"

@@ -4,6 +4,59 @@ Event-driven integration layer between ACRS (Amadeus) and internal consumers. Di
 
 ---
 
+## Repository Structure
+
+```
+ACP-ACRS-Feeds-Dispatcher/
+├── docs/                        # Reference documentation
+│   ├── architecture/            # System design, ADRs, diagrams
+│   │   ├── adr/                 # Architecture Decision Records
+│   │   └── diagrams/            # Standalone diagram sources
+│   ├── business/                # Product brief, value map
+│   ├── onboarding/              # Publisher & consumer onboarding guides
+│   ├── runbooks/                # Incident response, deployment checklist
+│   └── compliance/              # ACP Label Framework status
+│
+├── product/                     # Product workspace (PO-owned)
+│   ├── roadmap.md
+│   ├── backlog.md
+│   └── feedback/                # Async stakeholder feedback
+│
+├── services/                    # Application source code
+│   ├── app1-ingestion/          # Receives feeds → S3 + SQS
+│   └── app2-dispatch/           # SQS → transform → EventBridge
+│
+├── infra/                       # Infrastructure as Code
+│   ├── terraform/
+│   │   ├── modules/
+│   │   │   ├── consumer/        # Terraform module: onboard a consumer
+│   │   │   └── endpoint/        # Terraform module: onboard a feed endpoint
+│   │   └── environments/
+│   │       ├── dev/
+│   │       ├── oat/
+│   │       └── prod/
+│   └── helm/
+│       ├── app1-ingestion/      # Helm chart + per-env values
+│       └── app2-dispatch/       # Helm chart + per-env values
+│
+├── deploy/                      # ArgoCD deployment manifests
+│   └── argocd/
+│       ├── project.yaml
+│       ├── app1-ingestion.yaml  # DEV / OAT / PROD Applications
+│       └── app2-dispatch.yaml
+│
+├── monitoring/                  # Dashboards and alert definitions
+│   ├── cloudwatch/              # CloudWatch dashboards + alarms
+│   └── splunk/                  # Splunk dashboards
+│
+└── .github/
+    ├── CODEOWNERS
+    ├── pull_request_template.md
+    └── workflows/               # CI pipelines (build, push to ECR, scan)
+```
+
+---
+
 ## Table of Contents
 
 - [Architecture Overview](#architecture-overview)

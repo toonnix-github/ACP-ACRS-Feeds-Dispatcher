@@ -1,0 +1,8 @@
+apiVersion: v2
+name: app1-ingestion
+description: Feeds Dispatcher — Ingestion Service (App1)
+type: application
+version: 0.1.0
+appVersion: "latest"
+maintainers:
+  - name: feeds-dispatcher-team

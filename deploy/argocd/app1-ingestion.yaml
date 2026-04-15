@@ -1,0 +1,89 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app1-ingestion-dev
+  namespace: argocd
+  labels:
+    service: app1-ingestion
+    environment: dev
+spec:
+  project: feeds-dispatcher
+
+  source:
+    repoURL: "{account}.dkr.ecr.eu-west-1.amazonaws.com/feeds-dispatcher"
+    chart: app1-ingestion
+    targetRevision: "*"
+    helm:
+      valueFiles:
+        - values-dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: feeds-dispatcher-dev
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app1-ingestion-oat
+  namespace: argocd
+  labels:
+    service: app1-ingestion
+    environment: oat
+spec:
+  project: feeds-dispatcher
+
+  source:
+    repoURL: "{account}.dkr.ecr.eu-west-1.amazonaws.com/feeds-dispatcher"
+    chart: app1-ingestion
+    targetRevision: "*"
+    helm:
+      valueFiles:
+        - values-oat.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: feeds-dispatcher-oat
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app1-ingestion-prod
+  namespace: argocd
+  labels:
+    service: app1-ingestion
+    environment: prod
+spec:
+  project: feeds-dispatcher
+
+  source:
+    repoURL: "{account}.dkr.ecr.eu-west-1.amazonaws.com/feeds-dispatcher"
+    chart: app1-ingestion
+    targetRevision: "*"
+    helm:
+      valueFiles:
+        - values-prod.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: feeds-dispatcher-prod
+
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    # PROD: no auto-sync — manual trigger required

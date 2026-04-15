@@ -1,0 +1,8 @@
+apiVersion: v2
+name: app2-dispatch
+description: Feeds Dispatcher — Dispatch Service (App2)
+type: application
+version: 0.1.0
+appVersion: "latest"
+maintainers:
+  - name: feeds-dispatcher-team
