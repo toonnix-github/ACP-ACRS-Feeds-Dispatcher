@@ -1,4 +1,4 @@
-name: Claude Sr. Engineer Review
+name: Ammy – Sr. Engineer Review
 
 on:
   pull_request:
@@ -7,72 +7,86 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
-  review:
+  ammy-review:
     runs-on: ubuntu-latest
-    # Skip if the PR was opened by the Claude worker itself re-triggering after a fix
     if: github.event.pull_request.draft == false
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      REPO: ${{ github.repository }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Claude Sr. Engineer Review
-        uses: anthropics/claude-code-action@beta
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          direct_prompt: |
-            You are a Senior Engineer reviewing a pull request on the ACP-ACRS Feeds Dispatcher project.
+      - name: Get PR diff
+        id: diff
+        run: |
+          gh pr diff "$PR_NUMBER" --repo "$REPO" > /tmp/pr_diff.txt
+          echo "Diff size: $(wc -c < /tmp/pr_diff.txt) bytes"
 
-            ## Your Role
-            - Review all changed files thoroughly
-            - Leave specific, actionable inline comments on issues you find
-            - Think about correctness, security, scalability, and consistency with the project's architecture
+      - name: Run Ammy – Sr. Engineer Review
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if [ -z "$GOOGLE_API_KEY" ]; then
+            echo "ERROR: GOOGLE_API_KEY secret is not set"
+            echo "Ammy could not generate a review — GOOGLE_API_KEY secret is missing in repo settings." > /tmp/review_body.txt
+            exit 0
+          fi
+          echo "API key present: ${GOOGLE_API_KEY:0:7}..."
 
-            ## Project Context
-            This is an event-driven integration layer between ACRS (Amadeus) and internal consumers.
-            - App1 (Ingestion): receives feeds via ALB, validates, writes to S3, enqueues to SQS
-            - App2 (Dispatch): polls SQS, generates presigned URLs, publishes to EventBridge
-            - Infrastructure: EKS, Terraform, Helm, ArgoCD
-            - Environments: DEV → OAT → PROD
-            - PROD downtime constraint: <2 minutes
+          DIFF_CONTENT=$(cat /tmp/pr_diff.txt)
 
-            ## What to Check
+          PROMPT="You are Ammy, a Senior Engineer reviewing a pull request.\n\nPR Title: $PR_TITLE\n\nPR Description:\n$PR_BODY\n\n## Diff\n\`\`\`\n$DIFF_CONTENT\n\`\`\`\n\n## Project Context\nEvent-driven integration: ACRS → Feeds Dispatcher → Consumers (Loyalty, Data Team, FastCom).\n- App1 (Ingestion): ALB → validate → S3 → SQS\n- App2 (Dispatch): SQS → presigned URL → EventBridge\n- Stack: EKS, Terraform, Helm, ArgoCD\n- Environments: DEV → OAT → PROD | PROD downtime < 2 min\n\n## Review Checklist\n**Code / Services:**\n- No secrets or credentials hardcoded\n- \`.env.example\` updated when new env vars added\n- SQS message deleted only after successful processing\n- S3 key format: \`{feedType}/{yyyy}/{mm}/{dd}/{uuid}\`\n- Errors not swallowed silently\n\n**Terraform:**\n- No hardcoded ARNs or account IDs\n- Tags: \`Environment\`, \`ManagedBy = terraform\`\n- IAM least-privilege\n\n**Helm / Kubernetes:**\n- No \`latest\` tag in OAT or PROD values\n- Resource requests/limits defined\n- Liveness and readiness probes present\n- Autoscaling on for OAT and PROD\n\n**Docs / ADRs:**\n- ADR format: Status → Context → Decision → Consequences\n- Mermaid used for diagrams\n- Runbooks have real commands\n\n**General:**\n- PR scope matches title/description\n- No dead code or untracked TODOs\n\nWrite a thorough code review. Start with a brief summary. List any issues found. End with a clear APPROVE or REQUEST_CHANGES verdict. Sign off as **— Ammy**."
 
-            **Code / Services:**
-            - No secrets or credentials hardcoded
-            - `.env.example` updated if new env vars are introduced
-            - Health endpoints (`/health`, `/health/details`) correctly implemented
-            - Error handling doesn't swallow failures silently
-            - SQS message deletion only happens after successful processing
-            - S3 writes use the correct key structure: `{feedType}/{yyyy}/{mm}/{dd}/{uuid}`
+          PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+            contents: [{ parts: [{ text: $prompt }] }],
+            generationConfig: { maxOutputTokens: 2048 }
+          }')
 
-            **Infrastructure (Terraform):**
-            - No hardcoded account IDs, ARNs, or credentials
-            - Resource tags include `Environment`, `ManagedBy = terraform`
-            - State backend configured correctly per environment
-            - IAM policies follow least-privilege
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=$GOOGLE_API_KEY" \
+            -H "content-type: application/json" \
+            -d "$PAYLOAD")
 
-            **Helm / Kubernetes:**
-            - `latest` tag never used in OAT or PROD values files
-            - Resource requests and limits defined
-            - Liveness and readiness probes configured
-            - Autoscaling enabled for OAT and PROD
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | sed '/HTTP_STATUS:/d')
 
-            **Docs / ADRs:**
-            - ADR format followed (Status, Context, Decision, Consequences)
-            - Diagrams use Mermaid and render correctly in Markdown
-            - Runbooks include concrete commands, not just descriptions
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response preview: $(echo "$BODY" | head -c 300)"
 
-            **General:**
-            - PR touches only what the title/description claims
-            - No commented-out code left behind
-            - No TODO left untracked (either create a backlog item or fix it now)
+          REVIEW_BODY=$(echo "$BODY" | jq -r '.candidates[0].content.parts[0].text // empty')
+          if [ -z "$REVIEW_BODY" ]; then
+            ERROR_MSG=$(echo "$BODY" | jq -r '.error.message // "Unknown API error"')
+            REVIEW_BODY="Ammy could not generate a review. API error (HTTP $HTTP_STATUS): $ERROR_MSG"
+          fi
+          echo "$REVIEW_BODY" > /tmp/review_body.txt
+          echo "Review generated: $(wc -w < /tmp/review_body.txt) words"
 
-            ## Decision
-            After your review:
-            - If everything looks good: **approve the PR** with a brief summary of what you reviewed
-            - If there are issues: **request changes** with clear, specific feedback on what needs to be fixed
-            - Do NOT merge the PR — approval is your final action
+      - name: Determine verdict and post review
+        run: |
+          # Detect verdict from review text (avoid loading into variable to preserve newlines)
+          if grep -qi "REQUEST_CHANGES\|request changes\|blocking issue\|must fix\|cannot approve" /tmp/review_body.txt; then
+            EVENT="REQUEST_CHANGES"
+          else
+            EVENT="APPROVE"
+          fi
+
+          echo "Verdict: $EVENT"
+
+          # Post formal PR review using --body-file to avoid shell escaping issues
+          if [ "$EVENT" = "REQUEST_CHANGES" ]; then
+            gh pr review "$PR_NUMBER" --repo "$REPO" --request-changes --body-file /tmp/review_body.txt \
+              || gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file /tmp/review_body.txt
+          else
+            gh pr review "$PR_NUMBER" --repo "$REPO" --approve --body-file /tmp/review_body.txt \
+              || gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file /tmp/review_body.txt
+          fi

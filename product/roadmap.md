@@ -28,6 +28,12 @@
 
 | Item | PI | Notes |
 |------|----|-------|
+| Repo structure & full documentation | Current PI | Merged — docs, ADRs, runbooks, onboarding guides |
+| Architecture diagrams (Mermaid) | Current PI | Merged — in README and docs/architecture/overview.md |
+| Terraform modules (consumer, endpoint) | Current PI | Merged — starter templates ready |
+| Helm charts — App1 & App2 | Current PI | Merged — with per-env values files |
+| ArgoCD manifests — DEV / OAT / PROD | Current PI | Merged |
+| Claude Sr. Engineer auto-review workflow | Current PI | Merged — triggers on every PR |
 | Gzip support (workaround) | Past | Replaced by native handling in App1 |
 | EventBridge fan-out for Loyalty, Data Team, FastCom | Past | Live in PROD |
 | DLQ setup per consumer | Past | Live in PROD |

@@ -315,8 +315,18 @@ For high-risk releases, use per-endpoint rollout to minimize blast radius.
 
 ## Current Status
 
-- Migrating to EKS (target next PI)
-- Performance testing in progress
-- ACP Label Framework compliance ~70% complete
-- Cognito usage being reduced / phased out
-- Some CloudWatch/Splunk dashboards pending final validation
+| Item | Status |
+|------|--------|
+| Repo structure & documentation | Done |
+| Architecture diagrams (Mermaid) | Done |
+| ADRs (payload strategy, EKS migration, SQS decoupling) | Done |
+| Terraform modules (consumer, endpoint) | Done (starter) |
+| Helm charts — App1 & App2 | Done (starter) |
+| ArgoCD manifests — DEV / OAT / PROD | Done (starter) |
+| Claude Sr. Engineer auto-review on PRs | Done |
+| EKS migration (v4) | In Progress — target next PI |
+| App1 & App2 service implementation | In Progress |
+| Performance testing (pod sizing) | Planned |
+| ACP Label Framework compliance | In Progress (~70%) |
+| Cognito deprecation | Planned |
+| CloudWatch / Splunk dashboards validation | In Progress |
