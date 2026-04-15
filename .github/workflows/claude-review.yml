@@ -43,7 +43,7 @@ jobs:
             --arg title "$PR_TITLE" \
             --arg body "$PR_BODY" \
             '{
-              model: "claude-sonnet-4-6",
+              model: "claude-3-5-sonnet-20241022",
               max_tokens: 2048,
               messages: [
                 {
@@ -53,14 +53,32 @@ jobs:
               ]
             }')
 
-          RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
+          # Debug: check API key is present (mask actual value)
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "ERROR: ANTHROPIC_API_KEY secret is not set"
+            echo "Ammy could not generate a review — ANTHROPIC_API_KEY secret is missing in repo settings." > /tmp/review_body.txt
+            exit 0
+          fi
+          echo "API key present: ${ANTHROPIC_API_KEY:0:7}..."
+
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            https://api.anthropic.com/v1/messages \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
             -H "content-type: application/json" \
             -d "$PAYLOAD")
 
-          echo "API response received"
-          REVIEW_BODY=$(echo "$RESPONSE" | jq -r '.content[0].text // "Ammy could not generate a review (API error)."')
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | sed '/HTTP_STATUS:/d')
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response preview: $(echo "$BODY" | head -c 500)"
+
+          REVIEW_BODY=$(echo "$BODY" | jq -r '.content[0].text // empty')
+          if [ -z "$REVIEW_BODY" ]; then
+            ERROR_MSG=$(echo "$BODY" | jq -r '.error.message // "Unknown API error"')
+            REVIEW_BODY="Ammy could not generate a review. API error (HTTP $HTTP_STATUS): $ERROR_MSG"
+          fi
           echo "$REVIEW_BODY" > /tmp/review_body.txt
           echo "Review generated: $(wc -w < /tmp/review_body.txt) words"
 
