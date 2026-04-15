@@ -1,42 +1,43 @@
 # Backlog
 
-Prioritised list of work items. Items at the top are highest priority.
+Prioritised list of work items extracted from Jira for PI7.
 
-## Legend
-- **Type:** `feature` | `improvement` | `bug` | `tech-debt` | `spike`
-- **Size:** `S` (< 1 day) | `M` (1–3 days) | `L` (3–5 days) | `XL` (> 5 days / needs breakdown)
+## How this backlog is organised
+- **This page** = one-page view by status for quick tracking.
+- **Detailed ticket content** = one file per ticket under `product/backlog/tickets/`.
 
----
+_Source: Jira export shared by team. Last updated: 2026-04-15 (UTC)._
 
-## Ready for Dev
+## Validation
 
-| # | Title | Type | Size | Notes |
-|---|-------|------|------|-------|
-| 1 | App1: implement `/health` and `/health/details` endpoints | feature | S | Public + authenticated |
-| 2 | App1: S3 write with feed type + timestamp key structure | feature | M | `{feedType}/{yyyy}/{mm}/{dd}/{uuid}` |
-| 3 | App1: SQS enqueue with lightweight message schema | feature | M | Include s3Key, feedType, receivedAt |
-| 4 | App2: SQS poll + S3 presigned URL generation | feature | M | TTL configurable per env |
-| 5 | App2: EventBridge publish with standard event schema | feature | M | See consumer-onboarding.md for schema |
-| 6 | Terraform: consumer module first pass | feature | L | EventBridge rule, DLQ, IAM, CW logs |
-| 7 | Terraform: endpoint module first pass | feature | L | ALB rule, auth, S3 prefix |
-| 8 | Helm: App1 chart with per-env values | feature | M | DEV / OAT / PROD values files |
-| 9 | Helm: App2 chart with per-env values | feature | M | DEV / OAT / PROD values files |
-| 10 | ArgoCD: App1 + App2 application manifests | feature | S | DEV first |
+| Issue Key | Summary | Assignee | Fix Version | Details |
+|---|---|---|---|---|
+| CLINPR-609 | [TEST+UAT] Bump lambda artifact RC versions to latest release to fix s3 path collisions of same ama-correlation-id | Zakriya ALI SABIR | PI7 | [Open](backlog/tickets/CLINPR-609.md) |
+| CLINPR-605 | [AFD][OAT::TEST] Rollout the gzip/json support of upload and async lambda functions | Zakriya ALI SABIR | PI7 | [Open](backlog/tickets/CLINPR-605.md) |
 
 ## In Progress
 
-| # | Title | Type | Size | Assignee |
-|---|-------|------|------|----------|
-| — | EKS cluster setup | feature | XL | Platform |
+| Issue Key | Summary | Assignee | Fix Version | Details |
+|---|---|---|---|---|
+| CLINPR-603 | Create Splunk form(Dashboard) to find feed at event bridge using Ama-Correlation-Id/Cf Number | Bhoopendra SINGH | PI7 | [Open](backlog/tickets/CLINPR-603.md) |
 
-## Planned (Not Yet Ready)
+## Done
 
-| # | Title | Type | Size | Notes |
-|---|-------|------|------|-------|
-| 11 | Performance test: baseline pod sizing | spike | M | Target: define requests/limits for App1 + App2 |
-| 12 | Deduplication: SQS message dedup via message group ID or idempotency key | improvement | L | Phase 2 |
-| 13 | Feed schema validation at ingestion | improvement | M | Reject bad payloads early with 400 |
-| 14 | ACP Label Framework: remaining 30% | tech-debt | L | Coordinate with Security team |
-| 15 | Cognito deprecation: remove all Cognito dependencies | tech-debt | M | Blocked on EntraID cutover |
-| 16 | CloudWatch alarms: DLQ depth, App1/App2 error rate | improvement | S | |
-| 17 | Splunk dashboard: FIS / UAT / TEST / MIG | improvement | M | Validate existing dashboards |
+| Issue Key | Summary | Assignee | Fix Version | Details |
+|---|---|---|---|---|
+| CLINPR-608 | [AFD][OAT+PRO] Enable s3 bucket versioning on all env's | Zakriya ALI SABIR | PI7 | [Open](backlog/tickets/CLINPR-608.md) |
+| CLINPR-607 | [AFD][DEV] S3 Object Key Collision Fix | Zakriya ALI SABIR | PI7 | [Open](backlog/tickets/CLINPR-607.md) |
+| CLINPR-582 | [EKS][Feeds Dispatcher] Implement the Namespace and Admin services | Chayakorn LEKYIM | PI7 | [Open](backlog/tickets/CLINPR-582.md) |
+
+## Backlog
+
+| Issue Key | Summary | Assignee | Fix Version | Details |
+|---|---|---|---|---|
+| CLINPR-602 | App0 – Implement Authentication with Azure IntraID (Node.js) | Unassigned | — | [Open](backlog/tickets/CLINPR-602.md) |
+| CLINPR-594 | [AFD] Validate / Request PROXY whitelist for Azure IntraID connectivity | Unassigned | PI7 | [Open](backlog/tickets/CLINPR-594.md) |
+| CLINPR-590 | Deploy Feeds Dispatcher in DEV | Unassigned | — | [Open](backlog/tickets/CLINPR-590.md) |
+| CLINPR-589 | Connectivity Setup & Validation (PROD) | Unassigned | — | [Open](backlog/tickets/CLINPR-589.md) |
+| CLINPR-588 | Connectivity Setup & Validation (OAT) | Unassigned | — | [Open](backlog/tickets/CLINPR-588.md) |
+| CLINPR-586 | CI Pipeline – Build & Image Delivery | Zakriya ALI SABIR | — | [Open](backlog/tickets/CLINPR-586.md) |
+| CLINPR-585 | App2 – Dispatch & Consumer Preparation Service | Unassigned | — | [Open](backlog/tickets/CLINPR-585.md) |
+| CLINPR-583 | App1 – Ingestion Service | Zakriya ALI SABIR | — | [Open](backlog/tickets/CLINPR-583.md) |

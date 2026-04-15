@@ -9,12 +9,13 @@ This folder moves at **sprint cadence** — updated every PI/sprint. Unlike `doc
 | File/Folder | What it is |
 |-------------|-----------|
 | [roadmap.md](roadmap.md) | PI-level roadmap — what we're building and when |
-| [backlog.md](backlog.md) | Prioritised backlog of features, improvements, and tech debt |
+| [backlog.md](backlog.md) | One-page backlog index with status + links to ticket detail files |
+| [backlog/tickets/](backlog/tickets/) | One markdown file per Jira ticket with extracted acceptance criteria |
 | [feedback/](feedback/) | Async feedback from stakeholders, consumers, and the team |
 
 ## How to Use This Folder
 
-**Adding a backlog item:** Edit `backlog.md` directly and open a PR.
+**Adding a backlog item:** Add/update the ticket file in `backlog/tickets/` and then add/update its row in `backlog.md`.
 
 **Adding to the roadmap:** Discuss in the team channel first, then update `roadmap.md`.
 
